@@ -37,22 +37,16 @@ public:
         : ptr_(size)
         , size_(size)
         , capacity_(size) {
-        // в цикле заполняем вектор значениями value, используя std::move
-        for (auto it = begin(); it != end(); ++it) {
-            // std::exchange(*it, std::move(value));
-            *it = std::move(value);
-        }
+            std::fill(begin(), end(), std::move(value));
     }
 
     SimpleVector(size_t size, Type&& value)
         : ptr_(size)
         , size_(size)
         , capacity_(size) {
-        // в цикле заполняем вектор значениями value, используя std::move
-        for (auto it = begin(); it != end(); ++it) {
-            //std::exchange(*it, std::move(value));
-            *it = std::move(value);
-        }
+            std::generate(begin(), end(), [&value]() {
+                return std::move(value);
+            });
     }
 
     // Создаёт вектор из std::initializer_list
@@ -183,10 +177,10 @@ public:
     }
 
     // Конструктор перемещения
-    SimpleVector(SimpleVector&& other) noexcept
-        : ptr_(std::move(other.ptr_))
-        , size_(std::move(other.size_))
-        , capacity_(std::move(other.capacity_)) {
+    SimpleVector(SimpleVector&& other) noexcept {
+        std::exchange(ptr_, std::move(other.ptr_));
+        std::exchange(size_, std::move(other.size_));
+        std::exchange(capacity_, std::move(other.capacity_));
         other.size_ = 0;
         other.capacity_ = 0;
     }
@@ -195,11 +189,8 @@ public:
     SimpleVector& operator=(SimpleVector&& rhs) noexcept {
         // проверяем, что не будем перемещать вектор сам в себя
         if (this != &rhs) {
-            std::exchange(ptr_, std::move(rhs.ptr_));
-            std::exchange(size_, std::move(rhs.size_));
-            std::exchange(capacity_, std::move(rhs.capacity_));
-            rhs.size_ = 0;
-            rhs.capacity_ = 0;
+            SimpleVector temp(std::move(rhs)); // используем конструктор перемещения
+            swap(temp);
         }
         return *this;
     }
@@ -276,7 +267,7 @@ public:
     // Возвращает итератор на начало массива
     // Для пустого массива может быть равен (или не равен) nullptr
     Iterator begin() noexcept {
-        return &ptr_[0];
+        return ptr_.Get();
     }
 
     // Возвращает итератор на элемент, следующий за последним
@@ -290,7 +281,7 @@ public:
     // Для пустого массива может быть равен (или не равен) nullptr
     ConstIterator begin() const noexcept {
         // Напишите тело самостоятельно
-        return &ptr_[0];
+        return ptr_.Get();
     }
 
     // Возвращает итератор на элемент, следующий за последним
@@ -304,7 +295,7 @@ public:
     // Для пустого массива может быть равен (или не равен) nullptr
     ConstIterator cbegin() const noexcept {
         // Напишите тело самостоятельно
-        return &ptr_[0];
+        return ptr_.Get();
     }
 
     // Возвращает итератор на элемент, следующий за последним
