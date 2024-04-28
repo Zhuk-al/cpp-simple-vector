@@ -29,14 +29,7 @@ public:
 
     // Создаёт вектор из size элементов, инициализированных значением по умолчанию
     explicit SimpleVector(size_t size)
-        : ptr_(size)
-        , size_(size)
-        , capacity_(size) {
-        // в цикле заполняем вектор значениями по умолчанию, используя std::move
-        for (auto it = begin(); it != end(); ++it) {
-            //std::exchange(*it, std::move(Type()));
-            *it = std::move(Type());
-        }
+        : SimpleVector(size, Type{}) {
     }
 
     // Создаёт вектор из size элементов, инициализированных значением value
@@ -47,6 +40,17 @@ public:
         // в цикле заполняем вектор значениями value, используя std::move
         for (auto it = begin(); it != end(); ++it) {
             // std::exchange(*it, std::move(value));
+            *it = std::move(value);
+        }
+    }
+
+    SimpleVector(size_t size, Type&& value)
+        : ptr_(size)
+        , size_(size)
+        , capacity_(size) {
+        // в цикле заполняем вектор значениями value, используя std::move
+        for (auto it = begin(); it != end(); ++it) {
+            //std::exchange(*it, std::move(value));
             *it = std::move(value);
         }
     }
@@ -81,11 +85,13 @@ public:
 
     // Возвращает ссылку на элемент с индексом index
     Type& operator[](size_t index) noexcept {
+        assert(index < size_);
         return ptr_[index];
     }
 
     // Возвращает константную ссылку на элемент с индексом index
     const Type& operator[](size_t index) const noexcept {
+        assert(index < size_);
         return ptr_[index];
     }
 
@@ -121,9 +127,9 @@ public:
         }
         // если размера не хватает, но хватает вместимости, заполняем новые элементы значениями по умолчанию
         else if (new_size > size_ && new_size < capacity_) {
-            for (auto it = begin() + size_; it != begin() + new_size; ++it) {
-                *it = std::move(Type());
-            }
+            std::generate(begin() + size_, begin() + new_size, [] {
+                return Type{};
+            });
         }
         // иначе увеличиваем вместимость и заполняем новые элементы значениями по умолчанию
         else {
@@ -131,9 +137,9 @@ public:
             SimpleVector new_vector(new_capacity);
             std::move(begin(), end(), new_vector.begin());
             swap(new_vector);
-            for (auto it = begin() + size_; it != begin() + new_size; ++it) {
-                *it = std::move(Type());
-            }
+            std::generate(begin() + size_, begin() + new_size, [] {
+                return Type{};
+            });
         }
         // обновляем размер
         size_ = new_size;
@@ -164,8 +170,14 @@ public:
     SimpleVector& operator=(const SimpleVector& rhs) {
         // проверяем, что вектор не копируется сам в себя
         if (this != &rhs) {
-            SimpleVector copy(rhs);
-            swap(copy);
+            // Если rhs пуст, просто очищаем текущий вектор
+            if (rhs.size_ == 0) {
+                this->Clear(); // очищаем текущий вектор через метод Clear()
+            }
+            else {
+                SimpleVector copy(rhs);
+                swap(copy);
+            }
         }
         return *this;
     }
@@ -183,9 +195,9 @@ public:
     SimpleVector& operator=(SimpleVector&& rhs) noexcept {
         // проверяем, что не будем перемещать вектор сам в себя
         if (this != &rhs) {
-            ptr_ = std::move(rhs.ptr_);
-            size_ = std::move(rhs.size_);
-            capacity_ = std::move(rhs.capacity_);
+            std::exchange(ptr_, std::move(rhs.ptr_));
+            std::exchange(size_, std::move(rhs.size_));
+            std::exchange(capacity_, std::move(rhs.capacity_));
             rhs.size_ = 0;
             rhs.capacity_ = 0;
         }
@@ -197,6 +209,8 @@ public:
     // Если перед вставкой значения вектор был заполнен полностью,
     // вместимость вектора должна увеличиться вдвое, а для вектора вместимостью 0 стать равной 1
     Iterator Insert(ConstIterator pos, const Type& value) {
+        // проверяем, что pos находится в допустимом диапазоне итераторов вектора
+        assert(pos >= cbegin() && pos <= cend());
         size_t num_steps = std::distance(cbegin(), pos); // определяем количество шагов до позиции вставляемого значения
         CapacityChangeRequired(); // увеличиваем вместимость при необходимости 
         std::copy_backward(begin() + num_steps, begin() + size_, end()); // копируем текущие значения, начиная с конца, до позиции вставки
@@ -207,6 +221,8 @@ public:
     }
 
     Iterator Insert(ConstIterator pos, Type&& value) {
+        // проверяем, что pos находится в допустимом диапазоне итераторов вектора
+        assert(pos >= cbegin() && pos <= cend());
         size_t num_steps = std::distance(cbegin(), pos); // определяем количество шагов до позиции вставляемого значения
         CapacityChangeRequired(); // увеличиваем вместимость при необходимости 
         std::move_backward(begin() + num_steps, begin() + size_, end()); // сдвигаем существующие элементы вправо, начиная с конца, до позиции вставки
@@ -218,6 +234,13 @@ public:
 
     // "Удаляет" последний элемент вектора. Вектор не должен быть пустым
     void PopBack() noexcept {
+        // проверяем, что размер больше 0
+        assert(size_ > 0);
+        // либо вариант с выбрасыванием исключения
+        /*  if (size_ == 0) {
+               throw std::out_of_range("Empty vector");
+            }
+        */
         --size_;
     }
 
@@ -234,6 +257,8 @@ public:
 
     // Удаляет элемент вектора в указанной позиции
     Iterator Erase(ConstIterator pos) {
+        // проверяем, что pos находится в допустимом диапазоне итераторов вектора
+        assert(pos >= cbegin() && pos < cend());
         size_t num_steps = std::distance(cbegin(), pos); // определяем количество шагов до позиции удаляемого значения
         std::move(begin() + num_steps + 1, end(), begin() + num_steps); // перемещаем существующие элементы начиная с позиции удаляемого элемента
         --size_;

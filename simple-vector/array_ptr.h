@@ -43,8 +43,7 @@ public:
     // Прекращает владением массивом в памяти, возвращает значение адреса массива
     // После вызова метода указатель на массив должен обнулиться
     [[nodiscard]] Type* Release() noexcept {
-        Type* p = raw_ptr_;
-        raw_ptr_ = nullptr;
+        Type* p = std::exchange(raw_ptr_, nullptr);
         return p;
     }
 
@@ -83,8 +82,7 @@ public:
     ArrayPtr& operator=(ArrayPtr&& other) noexcept {
         // проверяем, что не будем перемещать указатель сам в себя
         if (this != &other) {
-            raw_ptr_ = other.raw_ptr_;
-            other.raw_ptr_ = nullptr;
+            std::swap(raw_ptr_, other.raw_ptr_);
         }
         return *this;
     }
