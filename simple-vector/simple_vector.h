@@ -177,12 +177,9 @@ public:
     }
 
     // Конструктор перемещения
-    SimpleVector(SimpleVector&& other) noexcept {
-        std::exchange(ptr_, std::move(other.ptr_));
-        std::exchange(size_, std::move(other.size_));
-        std::exchange(capacity_, std::move(other.capacity_));
-        other.size_ = 0;
-        other.capacity_ = 0;
+    SimpleVector(SimpleVector&& other) noexcept
+        : SimpleVector() {
+            swap(other);
     }
 
     // Оператор перемещения
@@ -227,11 +224,6 @@ public:
     void PopBack() noexcept {
         // проверяем, что размер больше 0
         assert(size_ > 0);
-        // либо вариант с выбрасыванием исключения
-        /*  if (size_ == 0) {
-               throw std::out_of_range("Empty vector");
-            }
-        */
         --size_;
     }
 
@@ -274,7 +266,7 @@ public:
     // Для пустого массива может быть равен (или не равен) nullptr
     Iterator end() noexcept {
         // Напишите тело самостоятельно
-        return &ptr_[size_];
+        return ptr_.Get() + size_;
     }
 
     // Возвращает константный итератор на начало массива
@@ -288,7 +280,7 @@ public:
     // Для пустого массива может быть равен (или не равен) nullptr
     ConstIterator end() const noexcept {
         // Напишите тело самостоятельно
-        return &ptr_[size_];
+        return ptr_.Get() + size_;
     }
 
     // Возвращает константный итератор на начало массива
@@ -302,7 +294,7 @@ public:
     // Для пустого массива может быть равен (или не равен) nullptr
     ConstIterator cend() const noexcept {
         // Напишите тело самостоятельно
-        return &ptr_[size_];
+        return ptr_.Get() + size_;
     }
 
 private:
